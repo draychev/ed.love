@@ -3,7 +3,7 @@
 SHELL=bash
 
 run: clean
-	love . blog.txt
+	love . article.txt
 
 clean:
 	find . -name '*~' -delete
@@ -11,3 +11,4 @@ clean:
 
 check:
 	luacheck .
+sudo luarocks install --server=https://luarocks.org/dev luaformatter

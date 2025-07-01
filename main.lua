@@ -13,18 +13,42 @@
 -- Line numbers 4‑digit, current line highlighted.
 -- Status bar + minibuffer at bottom.
 
-local utf8 = require('utf8')
+-- Freewheeling Apps
+require 'app'
+require 'live'
+require 'keychord'
 
-local buffer      = {""}
-local cursor      = {row=1,col=1}
-local filename    = nil
-local minibuffer  = ""
-local mode        = "edit"   -- "edit" or "mini"
-local pendingX    = false    -- waiting for 2nd key after C‑x
-local ttf         = "fonts/BerkeleyMonoVariable-Regular.ttf"
-local font        = love.graphics.newFont(ttf, 14)
+-- called both in tests and real run
+function App.initialize_globals()
+  Supported_versions = {'11.5', '11.4', '11.3', '11.2', '11.1', '11.0', '12.0'}  -- put the recommended version first
+  Error_message = ''
+  Error_count = 0
+
+  -- tests currently mostly clear their own state
+
+  -- blinking cursor
+  Cursor_time = 0
+
+  -- for hysteresis in a few places
+  Current_time = 0
+  Last_focus_time = 0  -- https://love2d.org/forums/viewtopic.php?p=249700
+  Last_resize_time = 0
+end
+
+---
+
+
+local utf8        = App.utf8
+local buffer      = App.buffer     
+local cursor      = App.cursor     
+local filename    = App.filename   
+local minibuffer  = App.minibuffer 
+local mode        = App.mode       
+local pendingX    = App.pendingX   
+local ttf         = App.ttf        
+local font        = App.font       
 love.graphics.setFont(font)
-local lh          = font:getHeight()
+local lh          = App.lh         
 
 local function load_file(path)
   buffer = {""}
@@ -60,6 +84,7 @@ local function move(dx,dy)
 end
 
 local function insert_char(ch)
+  -- print("DEBUG(insert_char): ch=" .. ch)
   local line = current_line()
   local bytepos = utf8.offset(line,cursor.col)
   buffer[cursor.row] = line:sub(1,bytepos-1)..ch..line:sub(bytepos)
@@ -98,7 +123,9 @@ local function kill_to_eol()
   buffer[cursor.row] = current_line():sub(1,utf8.offset(current_line(),cursor.col)-1)
 end
 
-function love.textinput(t)
+-- 
+function love.textinput(t) -- overriden in app.lua
+  -- print("DEBUG(main.love.textinput): mode=" .. mode)
   if mode=="edit" then
     insert_char(t)
   elseif mode=="mini" then
@@ -106,95 +133,168 @@ function love.textinput(t)
   end
 end
 
-function love.keypressed(key,scancode,isrepeat)
-  local ctrl = love.keyboard.isDown("lctrl","rctrl")
-  local alt  = love.keyboard.isDown("lalt","ralt")
 
-  if mode=="mini" then
-    if key=="return" then
-      if pendingX=="open" then load_file(minibuffer)
-      elseif pendingX=="save" then save_file(minibuffer) end
-      minibuffer="" mode="edit" pendingX=false
-    elseif key=="escape" then minibuffer="" mode="edit" pendingX=false
-    elseif key=="backspace" then minibuffer=minibuffer:sub(1,#minibuffer-1) end
-    return
+--- stuff from akkartik --------------------
+-- called only for real run
+function App.initialize(arg, unfiltered_arg)
+  Arg, Unfiltered_arg = arg, unfiltered_arg
+  love.keyboard.setKeyRepeat(true)
+
+  Editor_state = nil  -- not used outside editor tests
+
+  love.graphics.setBackgroundColor(1,1,1)
+
+  if love.filesystem.getInfo('config') then
+    load_settings()
+  else
+    initialize_default_settings()
   end
 
-  -- Ctrl navigation
-  if ctrl then
-    if key=="f" then move(1,0)
-    elseif key=="b" then move(-1,0)
-    elseif key=="n" then move(0,1)
-    elseif key=="p" then move(0,-1)
-    elseif key=="a" then cursor.col=1
-    elseif key=="e" then cursor.col=utf8.len(current_line())+1
-    elseif key=="d" then delete_char()
-    elseif key=="k" then kill_to_eol()
-    elseif key=="x" then pendingX=true return
-    end
-  elseif pendingX and ctrl then
-    -- Should not reach
-  elseif pendingX then
-    if ctrl and key=="f" then mode="mini"; minibuffer=""; pendingX="open"
-    elseif ctrl and key=="s" then mode="mini"; minibuffer=""; pendingX="save"
-    elseif ctrl and key=="c" then love.event.quit()
-    end
-    pendingX=false
-    return
-  end
 
-  if key=="backspace" then backspace()
-  elseif key=="return" then
-    local line = current_line()
-    local head = line:sub(1,utf8.offset(line,cursor.col)-1)
-    local tail = line:sub(utf8.offset(line,cursor.col))
-    buffer[cursor.row] = head
-    table.insert(buffer,cursor.row+1,tail)
-    cursor.row = cursor.row+1
-    cursor.col = 1
+
+  -- app-specific stuff
+  -- keep a few blank lines around: https://merveilles.town/@akkartik/110084833821965708
+  love.window.setTitle('broadsheet.love')
+
+
+
+  if on.initialize then on.initialize(arg, unfiltered_arg) end
+
+  if rawget(_G, 'jit') then
+    jit.off()
+    jit.flush()
   end
 end
 
-function love.draw()
-  love.graphics.clear(0.1,0.1,0.1)
-  local w,h = love.graphics.getDimensions()
-  local lines_visible = math.floor((h-2*lh)/lh)
-  local firstline = clamp(cursor.row - math.floor(lines_visible/2),1,math.max(1,line_count()-lines_visible+1))
+function initialize_default_settings()
+  local font_height = 20
+  love.graphics.setFont(love.graphics.newFont(font_height))
+  initialize_window_geometry()
+end
 
-  for i=0,lines_visible-1 do
-    local ln = firstline+i
-    if ln>line_count() then break end
-    local y = i*lh
-    if ln==cursor.row then
-      love.graphics.setColor(0.2,0.2,0.4)
-      love.graphics.rectangle("fill",0,y,w,lh)
+function initialize_window_geometry()
+  -- Initialize window width/height and make window resizable.
+  --
+  -- I get tempted to have opinions about window dimensions here, but they're
+  -- non-portable:
+  --  - maximizing doesn't work on mobile and messes things up
+  --  - maximizing keeps the title bar on screen in Linux, but off screen on
+  --    Windows. And there's no way to get the height of the title bar.
+  -- It seems more robust to just follow LÖVE's default window size until
+  -- someone overrides it.
+  App.screen.width, App.screen.height, App.screen.flags = App.screen.size()
+  App.screen.flags.resizable = true
+  App.screen.resize(App.screen.width, App.screen.height, App.screen.flags)
+end
+
+
+
+
+--- akkartik -- app-dots
+
+function App.resize(w,h)
+--?   print(("Window resized to width: %d and height: %d."):format(w, h))
+  App.screen.width, App.screen.height = w, h
+  -- some hysteresis while resizing
+  if Current_time < Last_resize_time + 0.1 then
+    return
+  end
+  Last_resize_time = Current_time
+  if on.resize then on.resize(w,h) end
+end
+
+function App.filedropped(file)
+  if on.file_drop then on.file_drop(file) end
+end
+
+function App.draw(utf8, buffer, lh, cursor)
+  -- print("DEBUG(main.App.draw): drawing")
+  if on.draw then on.draw(App.utf8, App.buffer, App.lh, App.cursor) end
+end
+
+function App.update(dt)
+  Current_time = Current_time + dt
+  -- some hysteresis while resizing
+  if Current_time < Last_resize_time + 0.1 then
+    return
+  end
+  Cursor_time = Cursor_time + dt
+  live.update(dt)
+  if on.update then on.update(dt) end
+end
+
+function App.mousepressed(x,y, mouse_button, is_touch, presses)
+  Cursor_time = 0  -- ensure cursor is visible immediately after it moves
+  love.keyboard.setTextInput(true)  -- bring up keyboard on touch screen
+  if on.mouse_press then on.mouse_press(x,y, mouse_button, is_touch, presses) end
+end
+
+function App.mousereleased(x,y, mouse_button, is_touch, presses)
+  Cursor_time = 0  -- ensure cursor is visible immediately after it moves
+  if on.mouse_release then on.mouse_release(x,y, mouse_button, is_touch, presses) end
+end
+
+function App.mousemoved(x,y, dx,dy, istouch)
+  if on.mouse_move then on.mouse_move(x,y, dx,dy, istouch) end
+end
+
+function App.wheelmoved(dx,dy)
+  Cursor_time = 0  -- ensure cursor is visible immediately after it moves
+  if on.mouse_wheel_move then on.mouse_wheel_move(dx,dy) end
+end
+
+function App.mousefocus(in_focus)
+  Cursor_time = 0  -- ensure cursor is visible immediately after it moves
+  if on.mouse_focus then on.mouse_focus(in_focus) end
+end
+
+function App.focus(in_focus)
+  if in_focus then
+    Last_focus_time = Current_time
+  end
+  if in_focus then
+    love.graphics.setBackgroundColor(1,1,1)
+  else
+    love.graphics.setBackgroundColor(0.8,0.8,0.8)
+  end
+  if on.focus then on.focus(in_focus) end
+end
+
+-- App.keypressed is defined in keychord.lua
+
+function App.keychord_press(chord, key, scancode, is_repeat)
+  -- print("DEBUG(main): App.keychord_press chord=" .. chord .. ", key=" .. key .. ", scancode=" .. scancode .. "is_repeat=" .. tostring(is_repeat))
+  -- ignore events for some time after window in focus (mostly alt-tab)
+  if Current_time < Last_focus_time + 0.01 then
+    return
+  end
+  Cursor_time = 0  -- ensure cursor is visible immediately after it moves
+  if on.keychord_press then on.keychord_press(chord, key, scancode, is_repeat) end
+end
+
+function App.textinput(t)
+  -- ignore events for some time after window in focus (mostly alt-tab)
+  if Current_time < Last_focus_time + 0.01 then
+    return
+  end
+  Cursor_time = 0  -- ensure cursor is visible immediately after it moves
+  if on.text_input then on.text_input(t) end
+end
+
+function App.keyreleased(key, scancode)
+  -- ignore events for some time after window in focus (mostly alt-tab)
+  if Current_time < Last_focus_time + 0.01 then
+    return
+  end
+  Cursor_time = 0  -- ensure cursor is visible immediately after it moves
+  if on.key_release then on.key_release(key, scancode) end
+end
+
+-- plumb all other handlers through to on.*
+for handler_name in pairs(love.handlers) do
+  if App[handler_name] == nil then
+    App[handler_name] = function(...)
+      if on[handler_name] then on[handler_name](...) end
     end
-    love.graphics.setColor(0.8,0.8,0.8)
-    local lnum = string.format("%04d",ln-1)
-    love.graphics.print(lnum.." ",0,y)
-    love.graphics.print(buffer[ln], 60, y)
   end
-
-  -- Status bar
-  love.graphics.setColor(0.3,0.3,0.3)
-  love.graphics.rectangle("fill",0,h-2*lh,w,lh)
-  love.graphics.setColor(1,1,1)
-  local status = (filename or "(new)").."  Ln "..(cursor.row-1)..", Col "..(cursor.col-1)
-  love.graphics.print(status,4,h-2*lh+2)
-
-  -- Minibuffer
-  love.graphics.setColor(0,0,0)
-  love.graphics.rectangle("fill",0,h-lh,w,lh)
-  love.graphics.setColor(1,1,1)
-  if mode=="mini" then
-    love.graphics.print(minibuffer,4,h-lh+2)
-  elseif pendingX then
-    love.graphics.print("C-x ",4,h-lh+2)
-  end
-
-  -- Cursor
-  local cx = 60 + font:getWidth(buffer[cursor.row]:sub(1,utf8.offset(buffer[cursor.row],cursor.col)-1))
-  local cy = (cursor.row-firstline)*lh
-  love.graphics.setColor(1,1,1)
-  love.graphics.rectangle("fill",cx,cy,2,lh)
 end

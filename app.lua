@@ -1,0 +1,609 @@
+nativefs = require 'nativefs'
+
+local Keys_down = {}
+
+-- main entrypoint for LÖVE
+--
+-- Most apps can just use the default shown in https://love2d.org/wiki/love.run,
+-- but we need to override it to:
+--   * recover from errors (by sending them to the driver and waiting for a command)
+--   * run all tests (functions starting with 'test_') on startup, and
+--   * save some state that makes it possible to switch between the main app
+--     and a source editor, while giving each the illusion of complete
+--     control.
+function love.run()
+  Version, Major_version = App.love_version()
+  App.snapshot_love()
+  live.load()
+  -- have LÖVE delegate all handlers to App if they exist
+  -- make sure to late-bind handlers like LÖVE's defaults do
+  for name in pairs(love.handlers) do
+    if App[name] then
+      -- love.keyboard.isDown doesn't work on Android, so emulate it using
+      -- keypressed and keyreleased events
+      if name == 'keypressed' then
+        print("DEBUG(app.keypressed)")
+        love.handlers[name] = function(key, scancode, isrepeat)
+                                print("DEBUG(app.keypressed): key = " .. key)
+                                Keys_down[key] = true
+				love.textinput(key)
+                                return App.keypressed(key, scancode, isrepeat)
+                              end
+      elseif name == 'keyreleased' then
+        love.handlers[name] = function(key, scancode)
+                                Keys_down[key] = nil
+                                return App.keyreleased(key, scancode)
+                              end
+      else
+        love.handlers[name] = function(...) App[name](...) end
+      end
+    end
+  end
+
+  -- Stash initial state of App (right after loading files) for tests
+  if App_for_tests == nil then
+    App_for_tests = {}
+    for k,v in pairs(App) do
+      App_for_tests[k] = v
+    end
+    -- there's one nested table
+    App_for_tests.screen = {}
+    for k,v in pairs(App.screen) do
+      App_for_tests.screen[k] = v
+    end
+  end
+  -- Mutate App for the real app
+  -- disable test methods
+  App.screen.init = nil
+  App.filesystem = nil
+  App.time = nil
+  App.run_after_textinput = nil
+  App.run_after_keychord = nil
+  App.keypress = nil
+  App.keyrelease = nil
+  App.run_after_mouse_click = nil
+  App.run_after_mouse_press = nil
+  App.run_after_mouse_release = nil
+  App.fake_keys_pressed = nil
+  App.fake_key_press = nil
+  App.fake_key_release = nil
+  App.fake_mouse_state = nil
+  App.fake_mouse_press = nil
+  App.fake_mouse_release = nil
+  -- other methods dispatch to real hardware
+  App.screen.resize = love.window.setMode
+  App.screen.size = love.window.getMode
+  App.screen.move = love.window.setPosition
+  App.screen.position = love.window.getPosition
+  App.screen.print = love.graphics.print
+  App.open_for_reading =
+      function(filename)
+        local result = nativefs.newFile(filename)
+        local ok, err = result:open('r')
+        if ok then
+          return result
+        else
+          return ok, err
+        end
+      end
+  App.read_file =
+      function(path)
+        if not is_absolute_path(path) then
+          return --[[status]] false, 'Please use an unambiguous absolute path.'
+        end
+        local f, err = App.open_for_reading(path)
+        if err then
+          return --[[status]] false, err
+        end
+        local contents = f:read()
+        f:close()
+        return contents
+      end
+  App.open_for_writing =
+      function(filename)
+        local result = nativefs.newFile(filename)
+        local ok, err = result:open('w')
+        if ok then
+          return result
+        else
+          return ok, err
+        end
+      end
+  App.write_file =
+      function(path, contents)
+        if not is_absolute_path(path) then
+          return --[[status]] false, 'Please use an unambiguous absolute path.'
+        end
+        local f, err = App.open_for_writing(path)
+        if err then
+          return --[[status]] false, err
+        end
+        f:write(contents)
+        f:close()
+        return --[[status]] true
+      end
+  App.files = nativefs.getDirectoryItems
+  App.file_info = nativefs.getInfo
+  App.mkdir = nativefs.createDirectory
+  App.remove = nativefs.remove
+  App.source_dir = love.filesystem.getSource()..'/'  -- '/' should work even on Windows
+  App.current_dir = nativefs.getWorkingDirectory()..'/'
+  App.save_dir = love.filesystem.getSaveDirectory()..'/'
+  App.get_time = love.timer.getTime
+  App.get_clipboard = love.system.getClipboardText
+  App.set_clipboard = love.system.setClipboardText
+  App.key_down = function(key) return Keys_down[key] end
+  App.mouse_move = love.mouse.setPosition
+  App.mouse_down = love.mouse.isDown
+  App.mouse_x = love.mouse.getX
+  App.mouse_y = love.mouse.getY
+
+  -- Tests always run at the start.
+  Test_errors = {}
+  App.run_tests(record_error)
+  -- if we encounter an error, wait for a fix
+  if #Test_errors > 0 then
+    local error_message = 'There were test failures:\n\n'..table.concat(Test_errors, '\n')
+    print(error_message)
+    live.send_run_time_error_to_driver(error_message)
+    local current_time, previous_read = 0, 0
+    while true do
+      if love.event then
+        love.event.pump()
+        for name, a,b,c,d,e,f in love.event.poll() do
+          if name == 'quit' then
+            os.exit(1)
+          end
+        end
+      end
+
+      local dt = love.timer.step()
+      current_time = current_time + dt
+      if current_time - previous_read > 0.1 then
+        local buf = live.receive_from_driver()
+        if buf then
+          local maybe_mutated = live.run(buf)
+          if maybe_mutated then
+            Test_errors = {}
+            App.run_tests(record_error)
+            if #Test_errors == 0 then
+              break
+            end
+            error_message = 'There were test failures:\n\n'..table.concat(Test_errors, '\n')
+            print(error_message)
+            live.send_run_time_error_to_driver(error_message)
+          end
+        end
+      end
+
+      love.graphics.origin()
+      love.graphics.clear(0,0,1)
+        love.graphics.setColor(1,1,1)
+        love.graphics.printf(error_message, 40,40, 600)
+      love.graphics.present()
+
+      love.timer.sleep(0.001)
+    end
+  end
+
+  App.initialize_globals()
+  xpcall(function() App.initialize(love.arg.parseGameArguments(arg), arg) end, live.handle_initialization_error)
+
+  love.timer.step()
+
+  -- protect against runtime errors
+  return function()
+    local status, result = xpcall(App.run_frame, live.handle_error)
+    return result
+  end
+end
+
+App = {
+  utf8       = require('utf8'),
+  buffer     = {""},
+  cursor     = {row = 1, col = 1},
+  filename   = nil,
+  minibuffer = "",
+  mode       = "edit",  -- "edit" or "mini"
+  pendingX   = false,
+  ttf        = "fonts/BerkeleyMonoVariable-Regular.ttf",
+  -- ttf        = "fonts/lucida-grande.ttf",
+  font_size  = 18
+}
+
+
+local anisotropy = 1 -- 0 is sharpest; 1 less so
+love.graphics.setDefaultFilter("linear", "linear", anisotropy)
+-- font = love.graphics.newFont(
+App.font = love.graphics.newFont(App.ttf, App.font_size)
+App.font:setFilter("linear", "linear", anisotropy)
+love.graphics.setFont(App.font)
+App.lh = App.font:getHeight()
+
+
+
+-- one iteration of the event loop
+-- return nil to continue the event loop, non-nil to quit
+function App.run_frame()
+  if love.event then
+    love.event.pump()
+    for name, a,b,c,d,e,f in love.event.poll() do
+      if name == "quit" then
+        if not love.quit or not love.quit() then
+          return a or 0
+        end
+      end
+      love.handlers[name](a,b,c,d,e,f)
+    end
+  end
+
+  local dt = love.timer.step()
+
+  App.update(dt)
+
+  love.graphics.origin()
+  love.graphics.clear(love.graphics.getBackgroundColor())
+  App.draw(utf8, buffer, lh, cursor)
+  love.graphics.present()
+
+  love.timer.sleep(0.001)
+
+  -- returning nil continues the loop
+end
+
+-- The rest of this file wraps around various LÖVE primitives to support
+-- automated tests. Often tests will run with a fake version of a primitive
+-- that redirects to the real love.* version once we're done with tests.
+--
+-- Not everything is so wrapped yet. Sometimes you still have to use love.*
+-- primitives directly.
+
+function App.love_version()
+  local major_version, minor_version = love.getVersion()
+  local version = major_version..'.'..minor_version
+  return version, major_version
+end
+
+-- save/restore various framework globals we care about -- only on very first load
+function App.snapshot_love()
+  if Love_snapshot then return end
+  Love_snapshot = {}
+  -- save the entire initial font; it doesn't seem reliably recreated using newFont
+  Love_snapshot.initial_font = love.graphics.getFont()
+end
+
+function App.undo_initialize()
+  love.graphics.setFont(Love_snapshot.initial_font)
+end
+
+function App.run_tests(record_error_fn)
+  local sorted_names = {}
+  for name,binding in pairs(_G) do
+    if name:find('test_') == 1 then
+      table.insert(sorted_names, name)
+    end
+  end
+  table.sort(sorted_names)
+  local globals = App.shallow_copy_all_globals()
+  App = App_for_tests
+  local saved_font = love.graphics.getFont()
+  love.graphics.setFont(Love_snapshot.initial_font)
+--?   App.initialize_for_test() -- debug: run a single test at a time like these 2 lines
+--?   test_search()
+  for _,name in ipairs(sorted_names) do
+    App.initialize_for_test()
+--?     print('=== '..name)
+    xpcall(_G[name], function(err) record_error_fn(name, err) end)
+  end
+  love.graphics.setFont(saved_font)
+  -- restore all global state except Test_errors
+  local test_errors = Test_errors
+  App.restore_all_globals(globals)
+  Test_errors = test_errors
+end
+
+function App.run_test(test, record_error_fn)
+  local globals = App.shallow_copy_all_globals()
+  App = App_for_tests
+  local saved_font = love.graphics.getFont()
+  love.graphics.setFont(Love_snapshot.initial_font)
+    App.initialize_for_test()
+    xpcall(test, function(err) record_error_fn('', err) end)
+  love.graphics.setFont(saved_font)
+  -- restore all global state except Test_errors
+  local test_errors = Test_errors
+  App.restore_all_globals(globals)
+  Test_errors = test_errors
+end
+
+function App.initialize_for_test()
+  App.screen.init{width=100, height=50}
+  App.screen.contents = {}  -- clear screen
+  App.filesystem = {}
+  App.source_dir = ''
+  App.current_dir = ''
+  App.save_dir = ''
+  App.fake_keys_pressed = {}
+  App.fake_mouse_state = {x=-1, y=-1}
+  App.initialize_globals()
+end
+
+-- App.screen.resize and App.screen.move seem like better names than
+-- love.window.setMode and love.window.setPosition respectively. They'll
+-- be side-effect-free during tests, and they'll save their results in
+-- attributes of App.screen for easy access.
+
+App.screen={}
+
+-- Use App.screen.init in tests to initialize the fake screen.
+function App.screen.init(dims)
+  App.screen.width = dims.width
+  App.screen.height = dims.height
+end
+
+function App.screen.resize(width, height, flags)
+  App.screen.width = width
+  App.screen.height = height
+  App.screen.flags = flags
+end
+
+function App.screen.size()
+  return App.screen.width, App.screen.height, App.screen.flags
+end
+
+function App.screen.move(x,y, displayindex)
+  App.screen.x = x
+  App.screen.y = y
+  App.screen.displayindex = displayindex
+end
+
+function App.screen.position()
+  return App.screen.x, App.screen.y, App.screen.displayindex
+end
+
+-- If you use App.screen.print instead of love.graphics.print,
+-- tests will be able to check what was printed using App.screen.check below.
+--
+-- One drawback of this approach: the y coordinate used depends on font size,
+-- which feels brittle.
+
+function App.screen.print(msg, x,y)
+  local screen_row = 'y'..tostring(y)
+--?   print('drawing "'..msg..'" at y '..tostring(y))
+  local screen = App.screen
+  if screen.contents[screen_row] == nil then
+    screen.contents[screen_row] = {}
+    for i=0,screen.width-1 do
+      screen.contents[screen_row][i] = ''
+    end
+  end
+  if x < screen.width then
+    screen.contents[screen_row][x] = msg
+  end
+end
+
+function App.screen.check(y, expected_contents, msg)
+--?   print('checking for "'..expected_contents..'" at y '..tostring(y))
+  local screen_row = 'y'..tostring(y)
+  local contents = ''
+  if App.screen.contents[screen_row] == nil then
+    error('no text at y '..tostring(y))
+  end
+  for i,s in ipairs(App.screen.contents[screen_row]) do
+    contents = contents..s
+  end
+end
+
+-- If you access the time using App.get_time instead of love.timer.getTime,
+-- tests will be able to move the time back and forwards as needed using
+-- App.wait_fake_time below.
+
+App.time = 1
+function App.get_time()
+  return App.time
+end
+function App.wait_fake_time(t)
+  App.time = App.time + t
+end
+
+function App.width(text)
+  return love.graphics.getFont():getWidth(text)
+end
+
+-- If you access the clipboard using App.get_clipboard and App.set_clipboard
+-- instead of love.system.getClipboardText and love.system.setClipboardText
+-- respectively, tests will be able to manipulate the clipboard by
+-- reading/writing App.clipboard.
+
+App.clipboard = ''
+function App.get_clipboard()
+  return App.clipboard
+end
+function App.set_clipboard(s)
+  App.clipboard = s
+end
+
+-- In tests I mostly send chords all at once to the keyboard handlers.
+-- However, you'll occasionally need to check if a key is down outside a handler.
+-- If you use App.key_down instead of love.keyboard.isDown, tests will be able to
+-- simulate keypresses using App.fake_key_press and App.fake_key_release
+-- below. This isn't very realistic, though, and it's up to tests to
+-- orchestrate key presses that correspond to the handlers they invoke.
+
+App.fake_keys_pressed = {}
+function App.key_down(key)
+  return App.fake_keys_pressed[key]
+end
+
+function App.fake_key_press(key)
+  App.fake_keys_pressed[key] = true
+end
+function App.fake_key_release(key)
+  App.fake_keys_pressed[key] = nil
+end
+
+-- Tests mostly will invoke mouse handlers directly. However, you'll
+-- occasionally need to check if a mouse button is down outside a handler.
+-- If you use App.mouse_down instead of love.mouse.isDown, tests will be able to
+-- simulate mouse clicks using App.fake_mouse_press and App.fake_mouse_release
+-- below. This isn't very realistic, though, and it's up to tests to
+-- orchestrate presses that correspond to the handlers they invoke.
+
+App.fake_mouse_state = {x=-1, y=-1}  -- x,y always set
+
+function App.mouse_move(x,y)
+  App.fake_mouse_state.x = x
+  App.fake_mouse_state.y = y
+end
+function App.mouse_down(mouse_button)
+  return App.fake_mouse_state[mouse_button]
+end
+function App.mouse_x()
+  return App.fake_mouse_state.x
+end
+function App.mouse_y()
+  return App.fake_mouse_state.y
+end
+
+function App.fake_mouse_press(x,y, mouse_button)
+  App.fake_mouse_state.x = x
+  App.fake_mouse_state.y = y
+  App.fake_mouse_state[mouse_button] = true
+end
+function App.fake_mouse_release(x,y, mouse_button)
+  App.fake_mouse_state.x = x
+  App.fake_mouse_state.y = y
+  App.fake_mouse_state[mouse_button] = nil
+end
+
+-- If you use App.open_for_reading and App.open_for_writing instead of other
+-- various Lua and LÖVE helpers, tests will be able to check the results of
+-- file operations inside the App.filesystem table.
+
+function App.open_for_reading(filename)
+  if App.filesystem[filename] then
+    return {
+      lines = function(self)
+                return App.filesystem[filename]:gmatch('[^\n]+')
+              end,
+      read = function(self)
+               return App.filesystem[filename]
+             end,
+      close = function(self)
+              end,
+    }
+  end
+end
+
+function App.read_file(filename)
+  return App.filesystem[filename]
+end
+
+function App.open_for_writing(filename)
+  App.filesystem[filename] = ''
+  return {
+    write = function(self, s)
+              App.filesystem[filename] = App.filesystem[filename]..s
+            end,
+    close = function(self)
+            end,
+  }
+end
+
+function App.write_file(filename, contents)
+  App.filesystem[filename] = contents
+  return --[[status]] true
+end
+
+function App.mkdir(dirname)
+  -- nothing in test mode
+end
+
+function App.remove(filename)
+  App.filesystem[filename] = nil
+end
+
+-- Some helpers to trigger an event and then refresh the screen. Akin to one
+-- iteration of the event loop.
+
+-- all textinput events are also keypresses
+-- TODO: handle chords of multiple keys
+function App.run_after_textinput(t)
+  App.keypressed(t)
+  App.textinput(t)
+  App.keyreleased(t)
+  App.screen.contents = {}
+  App.draw(utf8, buffer, lh, cursor)
+end
+
+-- not all keys are textinput
+-- TODO: handle chords of multiple keys
+function App.run_after_keychord(chord, key)
+  App.keychord_press(chord, key)
+  App.keyreleased(key)
+  App.screen.contents = {}
+  App.draw(utf8, buffer, lh, cursor)
+end
+
+function App.run_after_mouse_click(x,y, mouse_button)
+  App.fake_mouse_press(x,y, mouse_button)
+  App.mousepressed(x,y, mouse_button)
+  App.fake_mouse_release(x,y, mouse_button)
+  App.mousereleased(x,y, mouse_button)
+  App.screen.contents = {}
+  App.draw(utf8, buffer, lh, cursor)
+end
+
+function App.run_after_mouse_press(x,y, mouse_button)
+  App.fake_mouse_press(x,y, mouse_button)
+  App.mousepressed(x,y, mouse_button)
+  App.screen.contents = {}
+  App.draw(utf8, buffer, lh, cursor)
+end
+
+function App.run_after_mouse_release(x,y, mouse_button)
+  App.fake_mouse_release(x,y, mouse_button)
+  App.mousereleased(x,y, mouse_button)
+  App.screen.contents = {}
+  App.draw(utf8, buffer, lh, cursor)
+end
+
+-- miscellaneous internal helpers
+
+function App.color(color)
+  love.graphics.setColor(color.r, color.g, color.b, color.a)
+end
+
+function App.shallow_copy_all_globals()
+  local result = {}
+  for k,v in pairs(_G) do
+    result[k] = v
+  end
+  return result
+end
+
+function App.restore_all_globals(x)
+  -- delete extra bindings
+  for k,v in pairs(_G) do
+    if x[k] == nil then
+      _G[k] = nil
+    end
+  end
+  -- restore previous bindings
+  for k,v in pairs(x) do
+    _G[k] = v
+  end
+end
+
+-- Test_errors will be an array
+function record_error(test_name, err)
+  local err_without_line_number = err:gsub('^[^:]*:[^:]*: ', '')
+  table.insert(Test_errors, test_name..' -- '..err_without_line_number)
+end
+
+-- Test_errors will be a table by test name
+function record_error_by_test(test_name, err)
+  local err_without_line_number = err:gsub('^[^:]*:[^:]*: ', '')
+  Test_errors[test_name] = err_without_line_number
+--?   Test_errors[test_name] = debug.traceback(err_without_line_number)
+end

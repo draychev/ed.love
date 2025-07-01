@@ -1,0 +1,52 @@
+on.keychord_press = function(chord, key, scancode, is_repeat)
+
+  print("DEBUG(0014-on.keychord_press): key = " .. key)
+  local ctrl = love.keyboard.isDown("lctrl","rctrl")
+  local alt  = love.keyboard.isDown("lalt","ralt")
+
+  if mode=="mini" then
+    if key=="return" then
+      if pendingX=="open" then load_file(minibuffer)
+      elseif pendingX=="save" then save_file(minibuffer) end
+      minibuffer="" mode="edit" pendingX=false
+    elseif key=="escape" then minibuffer="" mode="edit" pendingX=false
+    elseif key=="backspace" then minibuffer=minibuffer:sub(1,#minibuffer-1) end
+    return
+  end
+
+  -- Ctrl navigation
+  if ctrl then
+    if key=="f" then move(1,0)
+    elseif key=="b" then move(-1,0)
+    elseif key=="n" then move(0,1)
+    elseif key=="p" then move(0,-1)
+    elseif key=="a" then cursor.col=1
+    elseif key=="e" then cursor.col=utf8.len(current_line())+1
+    elseif key=="d" then delete_char()
+    elseif key=="k" then kill_to_eol()
+    elseif key=="x" then pendingX=true return
+    end
+  elseif pendingX and ctrl then
+    -- Should not reach
+  elseif pendingX then
+    if ctrl and key=="f" then mode="mini"; minibuffer=""; pendingX="open"
+    elseif ctrl and key=="s" then mode="mini"; minibuffer=""; pendingX="save"
+    elseif ctrl and key=="c" then love.event.quit()
+    end
+    pendingX=false
+    return
+  end
+
+  if key=="backspace" then backspace()
+  elseif key=="return" then
+    local line = current_line()
+    local head = line:sub(1,utf8.offset(line,cursor.col)-1)
+    local tail = line:sub(utf8.offset(line,cursor.col))
+    buffer[cursor.row] = head
+    table.insert(buffer,cursor.row+1,tail)
+    cursor.row = cursor.row+1
+    cursor.col = 1
+  end
+
+
+end
