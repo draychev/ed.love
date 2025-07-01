@@ -1,20 +1,12 @@
 require 'editor'
 
 App = {
-    filename = nil,
-    minibuffer = "",
-    mode = "edit", -- "edit" or "mini"
-    pendingX = false,
-    ttf = "fonts/BerkeleyMonoVariable-Regular.ttf",
-    -- ttf        = "fonts/lucida-grande.ttf",
-    font_size = 18,
-    lookup = {escape = "\27", tab = "\t", space = " "}
 }
 
 local anisotropy = 1 -- 0 is sharpest; 1 less so
 love.graphics.setDefaultFilter("linear", "linear", anisotropy)
 -- font = love.graphics.newFont(
-App.font = love.graphics.newFont(App.ttf, App.font_size)
+App.font = love.graphics.newFont(Editor.ttf, Editor.font_size)
 App.font:setFilter("linear", "linear", anisotropy)
 love.graphics.setFont(App.font)
 App.lh = App.font:getHeight()
@@ -366,7 +358,7 @@ function record_error_by_test(test_name, err)
 end
 
 function App.insert_char(character)
-    local ch = App.lookup[character] or character -- fallback
+    local ch = Editor.lookup[character] or character -- fallback
     local line = App.current_line()
     local bytepos = Editor.utf8.offset(line, Editor.cursor.col)
     Editor.buffer[Editor.cursor.row] = line:sub(1, bytepos - 1) .. ch ..

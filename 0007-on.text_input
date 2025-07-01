@@ -1,8 +1,8 @@
 -- function love.textinput(t, App) -- TODO: do not pass App here
 function on.text_input(t, App)
-    if App.mode == "edit" then
+    if Editor.mode == "edit" then
         App.insert_char(t) -- TODO: is there a better place for this
-    elseif App.mode == "mini" then
+    elseif Editor.mode == "mini" then
         minibuffer = minibuffer .. t
     end
 end

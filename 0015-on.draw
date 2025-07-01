@@ -4,7 +4,7 @@ on.draw = function(App)
     local cursor = Editor.cursor
     local buffer = Editor.buffer
 
-    if App.font_size == nil then App.font_size = 14 end
+    if Editor.font_size == nil then Editor.font_size = 14 end
     if buffer == nil then buffer = "hey" end
     local ttf = "fonts/BerkeleyMonoVariable-Regular.ttf"
     local font = love.graphics.newFont(ttf, 14)
@@ -12,17 +12,17 @@ on.draw = function(App)
 
     love.graphics.clear(0.1, 0.1, 0.1)
     local w, h = love.graphics.getDimensions()
-    local lines_visible = math.floor((h - 2 * App.font_size) / App.font_size)
+    local lines_visible = math.floor((h - 2 * Editor.font_size) / Editor.font_size)
     local firstline = App.clamp(cursor.row - math.floor(lines_visible / 2), 1,
                                 math.max(1, App.line_count() - lines_visible + 1))
 
     for i = 0, lines_visible - 1 do
         local ln = firstline + i
         if ln > App.line_count() then break end
-        local y = i * App.font_size
+        local y = i * Editor.font_size
         if ln == cursor.row then
             love.graphics.setColor(0.2, 0.2, 0.4)
-            love.graphics.rectangle("fill", 0, y, w, App.font_size)
+            love.graphics.rectangle("fill", 0, y, w, Editor.font_size)
         end
         love.graphics.setColor(0.8, 0.8, 0.8)
         local lnum = string.format("%04d", ln - 1)
@@ -32,27 +32,27 @@ on.draw = function(App)
 
     -- Status bar
     love.graphics.setColor(0.3, 0.3, 0.3)
-    love.graphics.rectangle("fill", 0, h - 2 * App.font_size, w, App.font_size)
+    love.graphics.rectangle("fill", 0, h - 2 * Editor.font_size, w, Editor.font_size)
     love.graphics.setColor(1, 1, 1)
     local status = (filename or "(new)") .. "  Ln " .. (cursor.row - 1) ..
                        ", Col " .. (cursor.col - 1)
-    love.graphics.print(status, 4, h - 2 * App.font_size + 2)
+    love.graphics.print(status, 4, h - 2 * Editor.font_size + 2)
 
     -- Minibuffer
     love.graphics.setColor(0, 0, 0)
-    love.graphics.rectangle("fill", 0, h - App.font_size, w, App.font_size)
+    love.graphics.rectangle("fill", 0, h - Editor.font_size, w, Editor.font_size)
     love.graphics.setColor(1, 1, 1)
     if mode == "mini" then
-        love.graphics.print(minibuffer, 4, h - App.font_size + 2)
+        love.graphics.print(minibuffer, 4, h - Editor.font_size + 2)
     elseif pendingX then
-        love.graphics.print("C-x ", 4, h - App.font_size + 2)
+        love.graphics.print("C-x ", 4, h - Editor.font_size + 2)
     end
 
     -- cursor
     local offset = Editor.utf8.offset(buffer[cursor.row], cursor.col)
     local cx = 60 + font:getWidth(buffer[cursor.row]:sub(1, 9 - 1))
-    local cy = (cursor.row - firstline) * App.font_size
+    local cy = (cursor.row - firstline) * Editor.font_size
     love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle("fill", cx, cy, 2, App.font_size)
+    love.graphics.rectangle("fill", cx, cy, 2, Editor.font_size)
 end
 
