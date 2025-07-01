@@ -92,7 +92,10 @@ function love.run()
     App.open_for_reading = function(filename)
         local result = nativefs.newFile(filename)
         local ok, err = result:open('r')
-        if ok then return result else return ok, err
+        if ok then
+            return result
+        else
+            return ok, err
         end
     end
     App.read_file = function(path)
@@ -106,9 +109,9 @@ function love.run()
         f:close()
         return contents
     end
-    
+
     App.open_for_writing = function(filename)
-       DEBUG("main.App.open_for_writing", "filename="..filename)
+        DEBUG("main.App.open_for_writing", "filename=" .. filename)
         local result = nativefs.newFile(filename)
         local ok, err = result:open('w')
         if ok then

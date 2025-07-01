@@ -12,9 +12,10 @@ on.draw = function()
 
     love.graphics.clear(0.1, 0.1, 0.1)
     local w, h = love.graphics.getDimensions()
-    local lines_visible = math.floor((h - 2 * Editor.font_size) / Editor.font_size)
+    local lines_visible = math.floor((h - 2 * Editor.font_size) /
+                                         Editor.font_size)
     local firstline = clamp(cursor.row - math.floor(lines_visible / 2), 1,
-                                math.max(1, line_count() - lines_visible + 1))
+                            math.max(1, line_count() - lines_visible + 1))
 
     for i = 0, lines_visible - 1 do
         local ln = firstline + i
@@ -32,7 +33,8 @@ on.draw = function()
 
     -- Status bar
     love.graphics.setColor(0.3, 0.3, 0.3)
-    love.graphics.rectangle("fill", 0, h - 2 * Editor.font_size, w, Editor.font_size)
+    love.graphics.rectangle("fill", 0, h - 2 * Editor.font_size, w,
+                            Editor.font_size)
     love.graphics.setColor(1, 1, 1)
     local status = (filename or "(new)") .. "  Ln " .. (cursor.row - 1) ..
                        ", Col " .. (cursor.col - 1)
@@ -40,7 +42,8 @@ on.draw = function()
 
     -- Minibuffer
     love.graphics.setColor(0, 0, 0)
-    love.graphics.rectangle("fill", 0, h - Editor.font_size, w, Editor.font_size)
+    love.graphics
+        .rectangle("fill", 0, h - Editor.font_size, w, Editor.font_size)
     love.graphics.setColor(1, 1, 1)
     if mode == "mini" then
         love.graphics.print(minibuffer, 4, h - Editor.font_size + 2)

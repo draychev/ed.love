@@ -1,6 +1,6 @@
 require 'editor'
 
-on.keychord_press = function(chord, key, scancode, is_repeat, App)
+on.keychord_press = function(chord, key, scancode, is_repeat)
     local ctrl = love.keyboard.isDown("lctrl", "rctrl")
     local alt = love.keyboard.isDown("lalt", "ralt")
     local cursor = Editor.cursor
@@ -67,7 +67,7 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
     end
 
     if key == "backspace" then
-        App.backspace()
+        backspace()
     elseif key == "return" then
         local line = current_line()
         local head = line:sub(1, Editor.utf8.offset(line, cursor.col) - 1)

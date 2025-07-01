@@ -1,7 +1,6 @@
 require 'editor'
 
-App = {
-}
+App = {}
 
 local anisotropy = 1 -- 0 is sharpest; 1 less so
 love.graphics.setDefaultFilter("linear", "linear", anisotropy)
@@ -345,36 +344,6 @@ function record_error_by_test(test_name, err)
     -- ?   Test_errors[test_name] = debug.traceback(err_without_line_number)
 end
 
-function App.insert_char(character)
-    local ch = Editor.lookup[character] or character -- fallback
-    local line = current_line()
-    local bytepos = Editor.utf8.offset(line, Editor.cursor.col)
-    Editor.buffer[Editor.cursor.row] = line:sub(1, bytepos - 1) .. ch ..
-                                     line:sub(bytepos)
-    move(1, 0)
-end
-
-function App.backspace()
-    local cursor = Editor.cursor
-    local buffer = Editor.buffer
-    if cursor.col > 1 then
-        local line = current_line()
-        print("DEBUG(app.App.backspace): line=" .. line .. ", cursor.col=" ..
-                  cursor.col)
-        local b1 = Editor.utf8.offset(line, cursor.col)
-        local b0 = Editor.utf8.offset(line, cursor.col - 1)
-        print("DEBUG(app.App.backspace): b0=" .. b0 .. ", b1=" .. b1)
-        buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
-        move(-1, 0)
-    elseif cursor.row > 1 then
-        local prev_len = Editor.utf8.len(buffer[cursor.row - 1])
-        buffer[cursor.row - 1] = buffer[cursor.row - 1] .. buffer[cursor.row]
-        table.remove(buffer, cursor.row)
-        cursor.row = cursor.row - 1
-        cursor.col = prev_len + 1
-    end
-end
-
 function App.resize(w, h)
     -- ?   print(("Window resized to width: %d and height: %d."):format(w, h))
     App.screen.width, App.screen.height = w, h
@@ -443,7 +412,7 @@ function App.keychord_press(chord, key, scancode, is_repeat)
     if Current_time < Last_focus_time + 0.01 then return end
     Cursor_time = 0 -- ensure cursor is visible immediately after it moves
     if on.keychord_press then
-        on.keychord_press(chord, key, scancode, is_repeat, App) -- TODO: find a better way - why pass App?
+        on.keychord_press(chord, key, scancode, is_repeat)
     end
 end
 
@@ -451,7 +420,7 @@ function App.textinput(t)
     -- ignore events for some time after window in focus (mostly alt-tab)
     if Current_time < Last_focus_time + 0.01 then return end
     Cursor_time = 0 -- ensure cursor is visible immediately after it moves
-    if on.text_input then on.text_input(t, App) end
+    if on.text_input then on.text_input(t) end
 end
 
 function App.keyreleased(key, scancode)
@@ -544,7 +513,7 @@ end
 
 local function kill_to_eol()
     buffer[cursor.row] = current_line():sub(1, utf8.offset(current_line(),
-                                                               cursor.col) - 1)
+                                                           cursor.col) - 1)
 end
 
 --- stuff from akkartik --------------------
