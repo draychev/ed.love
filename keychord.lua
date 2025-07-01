@@ -4,12 +4,12 @@ Modifiers = {'lctrl', 'rctrl', 'lalt', 'ralt', 'lshift', 'rshift', 'lgui', 'rgui
 
 function App.keypressed(key, scancode, is_repeat)
   print("DEBUG(keychord.App.keypressed): key = " .. key)
-  if array.find(Modifiers, key) then
+  -- if array.find(Modifiers, key) then
     -- do nothing when the modifier is pressed
-    return
-  end
+    print("***DEBUG(keychord.App.keypressed): Modified(" .. key .. ") pressed; DO NOTHING")
+    --return
+  -- end
 
-  print("DEBUG(keychord.lua): key="..key)
   -- include the modifier(s) when the non-modifer is pressed
   App.keychord_press(App.combine_modifiers(key), key, scancode, is_repeat)
 end

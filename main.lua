@@ -72,26 +72,6 @@ local function save_file(path)
   filename = path
 end
 
-local function move(dx,dy)
-  cursor.row = App.clamp(cursor.row+dy,1,App.line_count())
-  cursor.col = App.clamp(cursor.col+dx,1,utf8.len(buffer[cursor.row])+1)
-end
-
-local lookup = {
-   escape = "\27",
-   tab    = "\t",
-   space  = " ",
-}
-
-local function insert_char(character)
-  local ch = lookup[character] or character  -- fallback to original if not found
-  print("DEBUG(insert_char): ch=" .. ch)
-  local line = App.current_line()
-  local bytepos = utf8.offset(line,cursor.col)
-  buffer[cursor.row] = line:sub(1,bytepos-1)..ch..line:sub(bytepos)
-  move(1,0)
-end
-
 local function delete_char()
   local line = App.current_line()
   local b0 = utf8.offset(line,cursor.col)
@@ -106,15 +86,6 @@ end
 
 local function kill_to_eol()
   buffer[cursor.row] = App.current_line():sub(1,utf8.offset(current_line(),cursor.col)-1)
-end
-
--- 
-function love.textinput(t) -- overriden in app.lua
-  if mode=="edit" then
-    insert_char(t)
-  elseif mode=="mini" then
-    minibuffer = minibuffer .. t
-  end
 end
 
 
@@ -257,13 +228,13 @@ function App.keychord_press(chord, key, scancode, is_repeat)
 end
 
 function App.textinput(t)
-   print("DEBUG(main.APp.textinput): t=" .. t)
+   print("DEBUG(main.App.textinput): t=" .. t)
   -- ignore events for some time after window in focus (mostly alt-tab)
   if Current_time < Last_focus_time + 0.01 then
     return
   end
   Cursor_time = 0  -- ensure cursor is visible immediately after it moves
-  if on.text_input then on.text_input(t) end
+  if on.text_input then on.text_input(t, App) end
 end
 
 function App.keyreleased(key, scancode)

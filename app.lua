@@ -26,7 +26,7 @@ function love.run()
         love.handlers[name] = function(key, scancode, isrepeat)
                                 print("DEBUG(app.keypressed): key = " .. key)
                                 Keys_down[key] = true
-				love.textinput(key)
+				-- love.textinput(key) -- TODO: Do we need this?
                                 return App.keypressed(key, scancode, isrepeat)
                               end
       elseif name == 'keyreleased' then
@@ -208,7 +208,12 @@ App = {
   pendingX   = false,
   ttf        = "fonts/BerkeleyMonoVariable-Regular.ttf",
   -- ttf        = "fonts/lucida-grande.ttf",
-  font_size  = 18
+  font_size  = 18,
+  lookup = {
+    escape = "\27",
+    tab    = "\t",
+    space  = " ",
+  },
 }
 
 
@@ -610,4 +615,20 @@ function record_error_by_test(test_name, err)
   local err_without_line_number = err:gsub('^[^:]*:[^:]*: ', '')
   Test_errors[test_name] = err_without_line_number
 --?   Test_errors[test_name] = debug.traceback(err_without_line_number)
+end
+
+
+function App.insert_char(character)
+  local ch = App.lookup[character] or character  -- fallback to original if not found
+  print("DEBUG(insert_char): ch=" .. ch)
+  local line = App.current_line()
+  local bytepos = App.utf8.offset(line, App.cursor.col)
+  App.buffer[App.cursor.row] = line:sub(1,bytepos-1) .. ch .. line:sub(bytepos)
+  App.move(1,0)
+end
+
+
+function App.move(dx,dy)
+  App.cursor.row = App.clamp(App.cursor.row+dy, 1, App.line_count())
+  App.cursor.col = App.clamp(App.cursor.col+dx, 1, App.utf8.len(App.buffer[App.cursor.row])+1)
 end
