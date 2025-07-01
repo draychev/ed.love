@@ -13,6 +13,7 @@
 -- Status bar + minibuffer at bottom.
 -- Freewheeling Apps
 require 'app'
+require 'debug'
 require 'live'
 require 'keychord'
 nativefs = require 'nativefs'
@@ -36,12 +37,11 @@ function love.run()
     -- make sure to late-bind handlers like LÖVE's defaults do
     for name in pairs(love.handlers) do
         if App[name] then
-            -- love.keyboard.isDown doesn't work on Android, so emulate it using
+            -- love.keyboard.isDown doesn't work on Android - emulate using
             -- keypressed and keyreleased events
             if name == 'keypressed' then
                 love.handlers[name] = function(key, scancode, isrepeat)
                     Keys_down[key] = true
-                    -- love.textinput(key) -- TODO: Do we need this?
                     return App.keypressed(key, scancode, isrepeat)
                 end
             elseif name == 'keyreleased' then
@@ -92,10 +92,7 @@ function love.run()
     App.open_for_reading = function(filename)
         local result = nativefs.newFile(filename)
         local ok, err = result:open('r')
-        if ok then
-            return result
-        else
-            return ok, err
+        if ok then return result else return ok, err
         end
     end
     App.read_file = function(path)
@@ -109,7 +106,9 @@ function love.run()
         f:close()
         return contents
     end
+    
     App.open_for_writing = function(filename)
+       DEBUG("main.App.open_for_writing", "filename="..filename)
         local result = nativefs.newFile(filename)
         local ok, err = result:open('w')
         if ok then
