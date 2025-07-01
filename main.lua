@@ -21,8 +21,8 @@ local filename    = nil
 local minibuffer  = ""
 local mode        = "edit"   -- "edit" or "mini"
 local pendingX    = false    -- waiting for 2nd key after C‑x
-
-local font        = love.graphics.newFont(14)
+local ttf         = "fonts/BerkeleyMonoVariable-Regular.ttf"
+local font        = love.graphics.newFont(ttf, 14)
 love.graphics.setFont(font)
 local lh          = font:getHeight()
 
