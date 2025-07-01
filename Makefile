@@ -16,4 +16,4 @@ deps:
 	sudo luarocks install --server=https://luarocks.org/dev luaformatter
 
 fmt:
-	/usr/local/bin/lua-format .
+	/usr/local/bin/lua-format -i ./*.lua ./00*
