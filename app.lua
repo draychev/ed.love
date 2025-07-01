@@ -412,8 +412,6 @@ function App.backspace()
     end
 end
 
-
-
 function App.resize(w, h)
     -- ?   print(("Window resized to width: %d and height: %d."):format(w, h))
     App.screen.width, App.screen.height = w, h
@@ -526,7 +524,6 @@ function App.initialize(arg, unfiltered_arg)
     end
 end
 
-
 -- called both in tests and real run
 function App.initialize_globals()
     Supported_versions = {
@@ -545,8 +542,6 @@ function App.initialize_globals()
     Last_focus_time = 0 -- https://love2d.org/forums/viewtopic.php?p=249700
     Last_resize_time = 0
 end
-
-
 
 -- *** *** ***
 local function load_file(path)
