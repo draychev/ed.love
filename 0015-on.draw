@@ -1,24 +1,22 @@
 -- this used to be function love.draw()
 
-on.draw = function(utf8, buffer, lh, cursor)
-   if cursor == nil then
-      -- print("DEBUG(0015-on.draw): CURSOR IS NIL cursor=" .. cursor)
-      cursor = "hey"
+on.draw = function(App)
+   if App.cursor == nil then
+      -- print("DEBUG(0015-on.draw): APP.CURSOR IS NIL App.cursor=" .. App.cursor)
+      App.cursor = "hey"
    else
-      -- print("DEBUG(0015-on.draw): cursor is NOT nil")
+      -- print("DEBUG(0015-on.draw): App.cursor is NOT nil")
    end
 
-  if lh == nil then lh = 14 end
-  if buffer == nil then buffer = "hey" end
+  if App.font_size == nil then App.font_size = 14 end
+  if App.buffer == nil then App.buffer = "hey" end
   --[[ print("DEBUG(0015-on.draw):  " ..
-	"utf8=" .. tostring(utf8) ..
-	", buffer=" .. table.concat(buffer, "\n") ..
-	", lh=" .. lh ..
-	", cursor=" .. tostring(cursor))
-  -- local cursor      = {row=1,col=1}
+	"App.utf8=" .. tostring(App.utf8) ..
+	", App.buffer=" .. table.concat(App.buffer, "\n") ..
+	", App.font_size=" .. App.font_size ..
+	", App.cursor=" .. tostring(App.cursor))
+  -- local App.cursor      = {row=1,col=1}
 ]]
-  local function line_count() return #buffer end
-  local function clamp(val,min,max) if val<min then return min elseif val>max then return max else return val end end   
 
 
   local ttf         = "fonts/BerkeleyMonoVariable-Regular.ttf"
@@ -28,44 +26,44 @@ on.draw = function(utf8, buffer, lh, cursor)
   
   love.graphics.clear(0.1,0.1,0.1)
   local w,h = love.graphics.getDimensions()
-  local lines_visible = math.floor((h-2*lh)/lh)
-  local firstline = clamp(cursor.row - math.floor(lines_visible/2),1,math.max(1,line_count()-lines_visible+1))
+  local lines_visible = math.floor((h-2*App.font_size)/App.font_size)
+  local firstline = App.clamp(App.cursor.row - math.floor(lines_visible/2),1,math.max(1,App.line_count()-lines_visible+1))
 
   for i=0,lines_visible-1 do
     local ln = firstline+i
-    if ln>line_count() then break end
-    local y = i*lh
-    if ln==cursor.row then
+    if ln>App.line_count() then break end
+    local y = i*App.font_size
+    if ln==App.cursor.row then
       love.graphics.setColor(0.2,0.2,0.4)
-      love.graphics.rectangle("fill",0,y,w,lh)
+      love.graphics.rectangle("fill",0,y,w,App.font_size)
     end
     love.graphics.setColor(0.8,0.8,0.8)
     local lnum = string.format("%04d",ln-1)
     love.graphics.print(lnum.." ",0,y)
-    love.graphics.print(buffer[ln], 60, y)
+    love.graphics.print(App.buffer[ln], 60, y)
   end
 
   -- Status bar
   love.graphics.setColor(0.3,0.3,0.3)
-  love.graphics.rectangle("fill",0,h-2*lh,w,lh)
+  love.graphics.rectangle("fill",0,h-2*App.font_size,w,App.font_size)
   love.graphics.setColor(1,1,1)
-  local status = (filename or "(new)").."  Ln "..(cursor.row-1)..", Col "..(cursor.col-1)
-  love.graphics.print(status,4,h-2*lh+2)
+  local status = (filename or "(new)").."  Ln "..(App.cursor.row-1)..", Col "..(App.cursor.col-1)
+  love.graphics.print(status,4,h-2*App.font_size+2)
 
-  -- Minibuffer
+  -- MiniApp.buffer
   love.graphics.setColor(0,0,0)
-  love.graphics.rectangle("fill",0,h-lh,w,lh)
+  love.graphics.rectangle("fill",0,h-App.font_size,w,App.font_size)
   love.graphics.setColor(1,1,1)
   if mode=="mini" then
-    love.graphics.print(minibuffer,4,h-lh+2)
+    love.graphics.print(miniApp.buffer,4,h-App.font_size+2)
   elseif pendingX then
-    love.graphics.print("C-x ",4,h-lh+2)
+    love.graphics.print("C-x ",4,h-App.font_size+2)
   end
 
-  -- Cursor
-  local cx = 60 + font:getWidth(buffer[cursor.row]:sub(1,utf8.offset(buffer[cursor.row],cursor.col)-1))
-  local cy = (cursor.row-firstline)*lh
+  -- App.Cursor
+  local cx = 60 + font:getWidth(App.buffer[App.cursor.row]:sub(1,App.utf8.offset(App.buffer[App.cursor.row],App.cursor.col)-1))
+  local cy = (App.cursor.row-firstline)*App.font_size
   love.graphics.setColor(1,1,1)
-  love.graphics.rectangle("fill",cx,cy,2,lh)
+  love.graphics.rectangle("fill",cx,cy,2,App.font_size)
 end
 

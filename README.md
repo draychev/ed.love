@@ -32,7 +32,8 @@ DESCRIPTION
 
 # Dependencies
 
-0. Lua
-1. Love2d
-3. LuaRocks
+0. Lua -- Lua 5.1.5  Copyright (C) 1994-2012 Lua.org, PUC-Rio
+1. Love2d -- LOVE 11.4 (Mysterious Mysteries)
+3. LuaRocks -- module  deployment system
+       for Lua
 4. LuaFormatter: `luarocks install --server=https://luarocks.org/dev luaformatter`

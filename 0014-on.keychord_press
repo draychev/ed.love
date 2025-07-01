@@ -1,6 +1,5 @@
 on.keychord_press = function(chord, key, scancode, is_repeat)
-
-  print("DEBUG(0014-on.keychord_press): key = " .. key)
+  -- print("DEBUG(0014-on.keychord_press): key = " .. key)
   local ctrl = love.keyboard.isDown("lctrl","rctrl")
   local alt  = love.keyboard.isDown("lalt","ralt")
 
@@ -47,6 +46,21 @@ on.keychord_press = function(chord, key, scancode, is_repeat)
     cursor.row = cursor.row+1
     cursor.col = 1
   end
+end
 
 
+local function backspace()
+  if cursor.col>1 then
+    local line = current_line()
+    local b1 = utf8.offset(line,cursor.col)
+    local b0 = utf8.offset(line,cursor.col-1)
+    buffer[cursor.row] = line:sub(1,b0-1)..line:sub(b1)
+    move(-1,0)
+  elseif cursor.row>1 then
+    local prev_len = utf8.len(buffer[cursor.row-1])
+    buffer[cursor.row-1] = buffer[cursor.row-1] .. buffer[cursor.row]
+    table.remove(buffer,cursor.row)
+    cursor.row = cursor.row-1
+    cursor.col = prev_len+1
+  end
 end

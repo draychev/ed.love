@@ -11,4 +11,9 @@ clean:
 
 check:
 	luacheck .
-sudo luarocks install --server=https://luarocks.org/dev luaformatter
+
+deps:
+	sudo luarocks install --server=https://luarocks.org/dev luaformatter
+
+fmt:
+	/usr/local/bin/lua-format .

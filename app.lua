@@ -221,6 +221,10 @@ love.graphics.setFont(App.font)
 App.lh = App.font:getHeight()
 
 
+function App.line_count() return #App.buffer end
+function App.current_line() return App.buffer[App.cursor.row] end
+function App.clamp(val,min,max) if val<min then return min elseif val>max then return max else return val end end
+
 
 -- one iteration of the event loop
 -- return nil to continue the event loop, non-nil to quit

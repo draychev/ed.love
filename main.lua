@@ -72,59 +72,44 @@ local function save_file(path)
   filename = path
 end
 
-local function clamp(val,min,max) if val<min then return min elseif val>max then return max else return val end end
-
-local function line_count() return #buffer end
-local function current_line() return buffer[cursor.row] end
-
 local function move(dx,dy)
-  cursor.row = clamp(cursor.row+dy,1,line_count())
-  cursor.col = clamp(cursor.col+dx,1,utf8.len(buffer[cursor.row])+1)
+  cursor.row = App.clamp(cursor.row+dy,1,App.line_count())
+  cursor.col = App.clamp(cursor.col+dx,1,utf8.len(buffer[cursor.row])+1)
 end
 
-local function insert_char(ch)
-  -- print("DEBUG(insert_char): ch=" .. ch)
-  local line = current_line()
+local lookup = {
+   escape = "\27",
+   tab    = "\t",
+   space  = " ",
+}
+
+local function insert_char(character)
+  local ch = lookup[character] or character  -- fallback to original if not found
+  print("DEBUG(insert_char): ch=" .. ch)
+  local line = App.current_line()
   local bytepos = utf8.offset(line,cursor.col)
   buffer[cursor.row] = line:sub(1,bytepos-1)..ch..line:sub(bytepos)
   move(1,0)
 end
 
-local function backspace()
-  if cursor.col>1 then
-    local line = current_line()
-    local b1 = utf8.offset(line,cursor.col)
-    local b0 = utf8.offset(line,cursor.col-1)
-    buffer[cursor.row] = line:sub(1,b0-1)..line:sub(b1)
-    move(-1,0)
-  elseif cursor.row>1 then
-    local prev_len = utf8.len(buffer[cursor.row-1])
-    buffer[cursor.row-1] = buffer[cursor.row-1] .. buffer[cursor.row]
-    table.remove(buffer,cursor.row)
-    cursor.row = cursor.row-1
-    cursor.col = prev_len+1
-  end
-end
-
 local function delete_char()
-  local line = current_line()
+  local line = App.current_line()
   local b0 = utf8.offset(line,cursor.col)
   if b0 and b0<=#line then
     local b1 = utf8.offset(line,cursor.col+1) or (#line+1)
     buffer[cursor.row] = line:sub(1,b0-1)..line:sub(b1)
-  elseif cursor.row<line_count() then
+  elseif cursor.row<App.line_count() then
     buffer[cursor.row] = line .. buffer[cursor.row+1]
     table.remove(buffer,cursor.row+1)
   end
 end
 
 local function kill_to_eol()
-  buffer[cursor.row] = current_line():sub(1,utf8.offset(current_line(),cursor.col)-1)
+  buffer[cursor.row] = App.current_line():sub(1,utf8.offset(current_line(),cursor.col)-1)
 end
 
 -- 
 function love.textinput(t) -- overriden in app.lua
-  print("DELETEME *** DEBUG(main.love.textinput): mode=" .. mode)
   if mode=="edit" then
     insert_char(t)
   elseif mode=="mini" then
@@ -208,7 +193,7 @@ end
 
 function App.draw(utf8, buffer, lh, cursor)
   -- print("DEBUG(main.App.draw): drawing")
-  if on.draw then on.draw(App.utf8, App.buffer, App.lh, App.cursor) end
+  if on.draw then on.draw(App) end
 end
 
 function App.update(dt)
