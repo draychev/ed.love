@@ -1,6 +1,6 @@
 require 'editor'
 
-on.draw = function(App)
+on.draw = function()
     local cursor = Editor.cursor
     local buffer = Editor.buffer
 

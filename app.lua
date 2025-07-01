@@ -386,7 +386,7 @@ end
 
 function App.filedropped(file) if on.file_drop then on.file_drop(file) end end
 
-function App.draw(utf8, buffer, lh, cursor) if on.draw then on.draw(App) end end
+function App.draw(utf8, buffer, lh, cursor) if on.draw then on.draw() end end
 
 function App.update(dt)
     Current_time = Current_time + dt
