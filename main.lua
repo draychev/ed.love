@@ -212,7 +212,7 @@ function App.keychord_press(chord, key, scancode, is_repeat)
     if Current_time < Last_focus_time + 0.01 then return end
     Cursor_time = 0 -- ensure cursor is visible immediately after it moves
     if on.keychord_press then
-        on.keychord_press(chord, key, scancode, is_repeat)
+        on.keychord_press(chord, key, scancode, is_repeat, App) -- TODO: find a better way - why pass App?
     end
 end
 
