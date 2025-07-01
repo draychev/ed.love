@@ -5,9 +5,10 @@ Modifiers = {
 
 function App.keypressed(key, scancode, is_repeat)
     if array.find(Modifiers, key) then
-      -- do nothing when the modifier is pressed
-      print("***DEBUG(keychord.App.keypressed): Modified(" .. key .. ") pressed; DO NOTHING")
-      return
+        -- do nothing when the modifier is pressed
+        print("***DEBUG(keychord.App.keypressed): Modified(" .. key ..
+                  ") pressed; DO NOTHING")
+        return
     end
 
     -- include the modifier(s) when the non-modifer is pressed

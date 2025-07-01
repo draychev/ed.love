@@ -3,7 +3,7 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
     local alt = love.keyboard.isDown("lalt", "ralt")
     local cursor = App.cursor
     local buffer = App.buffer
-    
+
     if mode == "mini" then
         if key == "return" then
             if pendingX == "open" then

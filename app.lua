@@ -578,10 +578,9 @@ function App.move(dx, dy)
                                App.utf8.len(App.buffer[App.cursor.row]) + 1)
 end
 
-
 function App.backspace()
-   local cursor = App.cursor
-   local buffer = App.buffer
+    local cursor = App.cursor
+    local buffer = App.buffer
     if cursor.col > 1 then
         local line = App.current_line()
         local b1 = App.utf8.offset(line, cursor.col)

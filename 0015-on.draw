@@ -11,9 +11,8 @@ on.draw = function(App)
     love.graphics.clear(0.1, 0.1, 0.1)
     local w, h = love.graphics.getDimensions()
     local lines_visible = math.floor((h - 2 * App.font_size) / App.font_size)
-    local firstline = App.clamp(cursor.row - math.floor(lines_visible / 2),
-                                1, math.max(1,
-                                            App.line_count() - lines_visible + 1))
+    local firstline = App.clamp(cursor.row - math.floor(lines_visible / 2), 1,
+                                math.max(1, App.line_count() - lines_visible + 1))
 
     for i = 0, lines_visible - 1 do
         local ln = firstline + i
