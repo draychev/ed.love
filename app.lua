@@ -583,10 +583,13 @@ function App.backspace()
     local buffer = App.buffer
     if cursor.col > 1 then
         local line = App.current_line()
+        print("DEBUG(app.App.backspace): line=" .. line .. ", cursor.col=" ..
+                  cursor.col)
         local b1 = App.utf8.offset(line, cursor.col)
         local b0 = App.utf8.offset(line, cursor.col - 1)
+        print("DEBUG(app.App.backspace): b0=" .. b0 .. ", b1=" .. b1)
         buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
-        move(-1, 0)
+        App.move(-1, 0)
     elseif cursor.row > 1 then
         local prev_len = App.utf8.len(buffer[cursor.row - 1])
         buffer[cursor.row - 1] = buffer[cursor.row - 1] .. buffer[cursor.row]
