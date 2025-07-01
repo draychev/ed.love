@@ -13,12 +13,12 @@ on.draw = function(App)
     love.graphics.clear(0.1, 0.1, 0.1)
     local w, h = love.graphics.getDimensions()
     local lines_visible = math.floor((h - 2 * Editor.font_size) / Editor.font_size)
-    local firstline = App.clamp(cursor.row - math.floor(lines_visible / 2), 1,
-                                math.max(1, App.line_count() - lines_visible + 1))
+    local firstline = clamp(cursor.row - math.floor(lines_visible / 2), 1,
+                                math.max(1, line_count() - lines_visible + 1))
 
     for i = 0, lines_visible - 1 do
         local ln = firstline + i
-        if ln > App.line_count() then break end
+        if ln > line_count() then break end
         local y = i * Editor.font_size
         if ln == cursor.row then
             love.graphics.setColor(0.2, 0.2, 0.4)

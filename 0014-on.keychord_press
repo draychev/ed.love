@@ -39,7 +39,7 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
         elseif key == "a" then
             cursor.col = 1
         elseif key == "e" then
-            cursor.col = Editor.utf8.len(App.current_line()) + 1
+            cursor.col = Editor.utf8.len(current_line()) + 1
         elseif key == "d" then
             delete_char()
         elseif key == "k" then
@@ -69,7 +69,7 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
     if key == "backspace" then
         App.backspace()
     elseif key == "return" then
-        local line = App.current_line()
+        local line = current_line()
         local head = line:sub(1, Editor.utf8.offset(line, cursor.col) - 1)
         local tail = line:sub(Editor.utf8.offset(line, cursor.col))
         buffer[cursor.row] = head

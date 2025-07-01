@@ -11,18 +11,6 @@ App.font:setFilter("linear", "linear", anisotropy)
 love.graphics.setFont(App.font)
 App.lh = App.font:getHeight()
 
-function App.line_count() return #Editor.buffer end
-function App.current_line() return Editor.buffer[Editor.cursor.row] end
-function App.clamp(val, min, max)
-    if val < min then
-        return min
-    elseif val > max then
-        return max
-    else
-        return val
-    end
-end
-
 -- one iteration of the event loop
 -- return nil to continue the event loop, non-nil to quit
 function App.run_frame()
@@ -359,7 +347,7 @@ end
 
 function App.insert_char(character)
     local ch = Editor.lookup[character] or character -- fallback
-    local line = App.current_line()
+    local line = current_line()
     local bytepos = Editor.utf8.offset(line, Editor.cursor.col)
     Editor.buffer[Editor.cursor.row] = line:sub(1, bytepos - 1) .. ch ..
                                      line:sub(bytepos)
@@ -370,7 +358,7 @@ function App.backspace()
     local cursor = Editor.cursor
     local buffer = Editor.buffer
     if cursor.col > 1 then
-        local line = App.current_line()
+        local line = current_line()
         print("DEBUG(app.App.backspace): line=" .. line .. ", cursor.col=" ..
                   cursor.col)
         local b1 = Editor.utf8.offset(line, cursor.col)
@@ -543,19 +531,19 @@ local function save_file(path)
 end
 
 local function delete_char()
-    local line = App.current_line()
+    local line = current_line()
     local b0 = Editor.utf8.offset(line, cursor.col)
     if b0 and b0 <= #line then
         local b1 = Editor.utf8.offset(line, cursor.col + 1) or (#line + 1)
         buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
-    elseif cursor.row < App.line_count() then
+    elseif cursor.row < line_count() then
         buffer[cursor.row] = line .. buffer[cursor.row + 1]
         table.remove(buffer, cursor.row + 1)
     end
 end
 
 local function kill_to_eol()
-    buffer[cursor.row] = App.current_line():sub(1, utf8.offset(current_line(),
+    buffer[cursor.row] = current_line():sub(1, utf8.offset(current_line(),
                                                                cursor.col) - 1)
 end
 
