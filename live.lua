@@ -49,7 +49,6 @@ function live.load_files_so_far()
     for _, filename in ipairs(love.filesystem.getDirectoryItems('')) do
         local numeric_prefix, root = filename:match('^(%d+)-(.+)')
         if numeric_prefix and tonumber(numeric_prefix) > 0 then -- skip 0000
-            print("DEBUG: loading file" .. filename)
             Live.filename[root] = filename
             table.insert(Live.filenames_to_load, filename)
             Live.final_prefix = math.max(Live.final_prefix,
@@ -136,7 +135,6 @@ function reset_terminal() return '\027[m' end
 function live.run(buf)
     local cmd = live.get_cmd_from_buffer(buf)
     assert(cmd)
-    print('DEBUG: command is ' .. cmd)
     if cmd == 'QUIT' then
         love.event.quit(1)
     elseif cmd == 'RESTART' then
@@ -144,7 +142,6 @@ function live.run(buf)
     elseif cmd == 'MANIFEST' then
         Live.filename[APP] = love.filesystem.getIdentity()
         live.send_to_driver(json.encode(Live.filename))
-        print("DEBUG: Sent to driver:" .. json.encode(Live.filename))
     elseif cmd == 'DELETE' then
         local definition_name = buf:match('^%s*%S+%s+(%S+)')
         if Live.frozen_definitions[definition_name] then
@@ -353,7 +350,6 @@ function error_run_frame()
             if name == 'quit' then
                 return a or 0
             elseif name == 'keypressed' then
-                print("DEBUG(live.App.run_frame.keypressed)")
                 error_frame_keys_down[a] = true
                 -- C-c
                 if a == 'c' and

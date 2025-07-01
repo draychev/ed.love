@@ -1,7 +1,5 @@
 -- function love.textinput(t, App) -- TODO: do not pass App here
 function on.text_input(t, App)
-    print("DEBUG(0007-on.text_input): t=" .. t)
-    print("DEBUG(0007-on.text_input): mode=" .. App.mode)
     if App.mode == "edit" then
         App.insert_char(t) -- TODO: is there a better place for this
     elseif App.mode == "mini" then

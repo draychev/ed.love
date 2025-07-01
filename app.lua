@@ -22,9 +22,7 @@ function love.run()
             -- love.keyboard.isDown doesn't work on Android, so emulate it using
             -- keypressed and keyreleased events
             if name == 'keypressed' then
-                print("DEBUG(app.keypressed)")
                 love.handlers[name] = function(key, scancode, isrepeat)
-                    print("DEBUG(app.keypressed): key = " .. key)
                     Keys_down[key] = true
                     -- love.textinput(key) -- TODO: Do we need this?
                     return App.keypressed(key, scancode, isrepeat)
@@ -566,8 +564,7 @@ function record_error_by_test(test_name, err)
 end
 
 function App.insert_char(character)
-    local ch = App.lookup[character] or character -- fallback to original if not found
-    print("DEBUG(insert_char): ch=" .. ch)
+    local ch = App.lookup[character] or character -- fallback
     local line = App.current_line()
     local bytepos = App.utf8.offset(line, App.cursor.col)
     App.buffer[App.cursor.row] = line:sub(1, bytepos - 1) .. ch ..
@@ -579,4 +576,23 @@ function App.move(dx, dy)
     App.cursor.row = App.clamp(App.cursor.row + dy, 1, App.line_count())
     App.cursor.col = App.clamp(App.cursor.col + dx, 1,
                                App.utf8.len(App.buffer[App.cursor.row]) + 1)
+end
+
+
+function App.backspace()
+   local cursor = App.cursor
+   local buffer = App.buffer
+    if cursor.col > 1 then
+        local line = App.current_line()
+        local b1 = App.utf8.offset(line, cursor.col)
+        local b0 = App.utf8.offset(line, cursor.col - 1)
+        buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
+        move(-1, 0)
+    elseif cursor.row > 1 then
+        local prev_len = App.utf8.len(buffer[cursor.row - 1])
+        buffer[cursor.row - 1] = buffer[cursor.row - 1] .. buffer[cursor.row]
+        table.remove(buffer, cursor.row)
+        cursor.row = cursor.row - 1
+        cursor.col = prev_len + 1
+    end
 end

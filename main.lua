@@ -35,20 +35,6 @@ function App.initialize_globals()
     Last_resize_time = 0
 end
 
----
-
-local utf8 = App.utf8
-local buffer = App.buffer
-local cursor = App.cursor
-local filename = App.filename
-local minibuffer = App.minibuffer
-local mode = App.mode
-local pendingX = App.pendingX
-local ttf = App.ttf
-local font = App.font
-love.graphics.setFont(font)
-local lh = App.lh
-
 local function load_file(path)
     buffer = {""}
     local f = io.open(path, "r")
@@ -74,9 +60,9 @@ end
 
 local function delete_char()
     local line = App.current_line()
-    local b0 = utf8.offset(line, cursor.col)
+    local b0 = App.utf8.offset(line, cursor.col)
     if b0 and b0 <= #line then
-        local b1 = utf8.offset(line, cursor.col + 1) or (#line + 1)
+        local b1 = App.utf8.offset(line, cursor.col + 1) or (#line + 1)
         buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
     elseif cursor.row < App.line_count() then
         buffer[cursor.row] = line .. buffer[cursor.row + 1]
@@ -152,7 +138,6 @@ end
 function App.filedropped(file) if on.file_drop then on.file_drop(file) end end
 
 function App.draw(utf8, buffer, lh, cursor)
-    -- print("DEBUG(main.App.draw): drawing")
     if on.draw then on.draw(App) end
 end
 
@@ -207,7 +192,6 @@ end
 -- App.keypressed is defined in keychord.lua
 
 function App.keychord_press(chord, key, scancode, is_repeat)
-    -- print("DEBUG(main): App.keychord_press chord=" .. chord .. ", key=" .. key .. ", scancode=" .. scancode .. "is_repeat=" .. tostring(is_repeat))
     -- ignore events for some time after window in focus (mostly alt-tab)
     if Current_time < Last_focus_time + 0.01 then return end
     Cursor_time = 0 -- ensure cursor is visible immediately after it moves
@@ -217,7 +201,6 @@ function App.keychord_press(chord, key, scancode, is_repeat)
 end
 
 function App.textinput(t)
-    print("DEBUG(main.App.textinput): t=" .. t)
     -- ignore events for some time after window in focus (mostly alt-tab)
     if Current_time < Last_focus_time + 0.01 then return end
     Cursor_time = 0 -- ensure cursor is visible immediately after it moves

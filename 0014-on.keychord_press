@@ -1,5 +1,4 @@
 on.keychord_press = function(chord, key, scancode, is_repeat, App)
-    -- print("DEBUG(0014-on.keychord_press): key = " .. key)
     local ctrl = love.keyboard.isDown("lctrl", "rctrl")
     local alt = love.keyboard.isDown("lalt", "ralt")
     local cursor = App.cursor
@@ -66,7 +65,7 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
     end
 
     if key == "backspace" then
-        backspace()
+        App.backspace()
     elseif key == "return" then
         local line = App.current_line()
         local head = line:sub(1, App.utf8.offset(line, cursor.col) - 1)
@@ -78,18 +77,3 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
     end
 end
 
-local function backspace()
-    if cursor.col > 1 then
-        local line = App.current_line()
-        local b1 = App.utf8.offset(line, cursor.col)
-        local b0 = App.utf8.offset(line, cursor.col - 1)
-        buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
-        move(-1, 0)
-    elseif cursor.row > 1 then
-        local prev_len = App.utf8.len(buffer[cursor.row - 1])
-        buffer[cursor.row - 1] = buffer[cursor.row - 1] .. buffer[cursor.row]
-        table.remove(buffer, cursor.row)
-        cursor.row = cursor.row - 1
-        cursor.col = prev_len + 1
-    end
-end
