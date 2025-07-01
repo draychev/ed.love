@@ -1,5 +1,3 @@
-nativefs = require 'nativefs'
-
 App = {
     utf8 = require('utf8'),
     buffer = {""},
@@ -74,14 +72,6 @@ function App.love_version()
     local major_version, minor_version = love.getVersion()
     local version = major_version .. '.' .. minor_version
     return version, major_version
-end
-
--- save/restore various framework globals we care about -- only on very first load
-function App.snapshot_love()
-    if Love_snapshot then return end
-    Love_snapshot = {}
-    -- save the entire initial font; it doesn't seem reliably recreated using newFont
-    Love_snapshot.initial_font = love.graphics.getFont()
 end
 
 function App.undo_initialize() love.graphics.setFont(Love_snapshot.initial_font) end

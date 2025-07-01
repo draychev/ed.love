@@ -15,6 +15,8 @@
 require 'app'
 require 'live'
 require 'keychord'
+nativefs = require 'nativefs'
+require 'freewheel'
 
 -- main entrypoint for LÖVE
 --
@@ -28,7 +30,7 @@ require 'keychord'
 local Keys_down = {}
 function love.run()
     Version, Major_version = App.love_version()
-    App.snapshot_love()
+    freewheel.snapshot_love()
     live.load()
     -- have LÖVE delegate all handlers to App if they exist
     -- make sure to late-bind handlers like LÖVE's defaults do
