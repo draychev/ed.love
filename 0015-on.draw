@@ -1,6 +1,8 @@
+require 'editor'
+
 on.draw = function(App)
-    local cursor = App.cursor
-    local buffer = App.buffer
+    local cursor = Editor.cursor
+    local buffer = Editor.buffer
 
     if App.font_size == nil then App.font_size = 14 end
     if buffer == nil then buffer = "hey" end
@@ -47,7 +49,7 @@ on.draw = function(App)
     end
 
     -- cursor
-    local offset = App.utf8.offset(buffer[cursor.row], cursor.col)
+    local offset = Editor.utf8.offset(buffer[cursor.row], cursor.col)
     local cx = 60 + font:getWidth(buffer[cursor.row]:sub(1, 9 - 1))
     local cy = (cursor.row - firstline) * App.font_size
     love.graphics.setColor(1, 1, 1)

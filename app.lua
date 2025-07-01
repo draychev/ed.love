@@ -1,7 +1,6 @@
+require 'editor'
+
 App = {
-    utf8 = require('utf8'),
-    buffer = {""},
-    cursor = {row = 1, col = 1},
     filename = nil,
     minibuffer = "",
     mode = "edit", -- "edit" or "mini"
@@ -20,8 +19,8 @@ App.font:setFilter("linear", "linear", anisotropy)
 love.graphics.setFont(App.font)
 App.lh = App.font:getHeight()
 
-function App.line_count() return #App.buffer end
-function App.current_line() return App.buffer[App.cursor.row] end
+function App.line_count() return #Editor.buffer end
+function App.current_line() return Editor.buffer[Editor.cursor.row] end
 function App.clamp(val, min, max)
     if val < min then
         return min
@@ -369,26 +368,26 @@ end
 function App.insert_char(character)
     local ch = App.lookup[character] or character -- fallback
     local line = App.current_line()
-    local bytepos = App.utf8.offset(line, App.cursor.col)
-    App.buffer[App.cursor.row] = line:sub(1, bytepos - 1) .. ch ..
+    local bytepos = Editor.utf8.offset(line, Editor.cursor.col)
+    Editor.buffer[Editor.cursor.row] = line:sub(1, bytepos - 1) .. ch ..
                                      line:sub(bytepos)
-    App.move(1, 0)
+    move(1, 0)
 end
 
 function App.backspace()
-    local cursor = App.cursor
-    local buffer = App.buffer
+    local cursor = Editor.cursor
+    local buffer = Editor.buffer
     if cursor.col > 1 then
         local line = App.current_line()
         print("DEBUG(app.App.backspace): line=" .. line .. ", cursor.col=" ..
                   cursor.col)
-        local b1 = App.utf8.offset(line, cursor.col)
-        local b0 = App.utf8.offset(line, cursor.col - 1)
+        local b1 = Editor.utf8.offset(line, cursor.col)
+        local b0 = Editor.utf8.offset(line, cursor.col - 1)
         print("DEBUG(app.App.backspace): b0=" .. b0 .. ", b1=" .. b1)
         buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
-        App.move(-1, 0)
+        move(-1, 0)
     elseif cursor.row > 1 then
-        local prev_len = App.utf8.len(buffer[cursor.row - 1])
+        local prev_len = Editor.utf8.len(buffer[cursor.row - 1])
         buffer[cursor.row - 1] = buffer[cursor.row - 1] .. buffer[cursor.row]
         table.remove(buffer, cursor.row)
         cursor.row = cursor.row - 1
@@ -553,9 +552,9 @@ end
 
 local function delete_char()
     local line = App.current_line()
-    local b0 = App.utf8.offset(line, cursor.col)
+    local b0 = Editor.utf8.offset(line, cursor.col)
     if b0 and b0 <= #line then
-        local b1 = App.utf8.offset(line, cursor.col + 1) or (#line + 1)
+        local b1 = Editor.utf8.offset(line, cursor.col + 1) or (#line + 1)
         buffer[cursor.row] = line:sub(1, b0 - 1) .. line:sub(b1)
     elseif cursor.row < App.line_count() then
         buffer[cursor.row] = line .. buffer[cursor.row + 1]

@@ -1,8 +1,10 @@
+require 'editor'
+
 on.keychord_press = function(chord, key, scancode, is_repeat, App)
     local ctrl = love.keyboard.isDown("lctrl", "rctrl")
     local alt = love.keyboard.isDown("lalt", "ralt")
-    local cursor = App.cursor
-    local buffer = App.buffer
+    local cursor = Editor.cursor
+    local buffer = Editor.buffer
 
     if mode == "mini" then
         if key == "return" then
@@ -37,7 +39,7 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
         elseif key == "a" then
             cursor.col = 1
         elseif key == "e" then
-            cursor.col = App.utf8.len(App.current_line()) + 1
+            cursor.col = Editor.utf8.len(App.current_line()) + 1
         elseif key == "d" then
             delete_char()
         elseif key == "k" then
@@ -68,8 +70,8 @@ on.keychord_press = function(chord, key, scancode, is_repeat, App)
         App.backspace()
     elseif key == "return" then
         local line = App.current_line()
-        local head = line:sub(1, App.utf8.offset(line, cursor.col) - 1)
-        local tail = line:sub(App.utf8.offset(line, cursor.col))
+        local head = line:sub(1, Editor.utf8.offset(line, cursor.col) - 1)
+        local tail = line:sub(Editor.utf8.offset(line, cursor.col))
         buffer[cursor.row] = head
         table.insert(buffer, cursor.row + 1, tail)
         cursor.row = cursor.row + 1
